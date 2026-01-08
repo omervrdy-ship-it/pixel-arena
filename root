@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <title>Pixel Arena 2026 - Settings Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial Black', sans-serif; }
+        #ui { position: fixed; inset: 0; pointer-events: none; z-index: 100; color: white; }
+        .screen { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: all; }
+        #time-menu, #pause-menu, #end-menu, #settings-menu { display: none; }
+        .card { background: #111; padding: 40px; border: 4px solid #00ffcc; border-radius: 20px; text-align: center; min-width: 350px; box-shadow: 0 0 30px rgba(0,255,204,0.3); }
+        .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; background: #fff; border: none; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 10px; transition: 0.2s; }
+        .btn:hover { background: #00ffcc; transform: scale(1.05); }
+        
+        /* Settings UI */
+        .setting-item { margin: 15px 0; text-align: left; }
+        .setting-item label { display: block; margin-bottom: 5px; color: #00ffcc; font-size: 14px; }
+        select, input[type=range] { width: 100%; padding: 10px; border-radius: 5px; cursor: pointer; }
+
+        #stamina-bar { position: fixed; right: 20px; bottom: 60px; width: 200px; height: 12px; background: rgba(0,0,0,0.5); border: 2px solid #fff; border-radius: 6px; overflow: hidden; display: none; }
+        #stamina-fill { width: 100%; height: 100%; background: #00aaff; transition: width 0.1s; }
+        #hud { position: absolute; top: 20px; width: 100%; text-align: center; display: none; }
+        .score-box { background: rgba(0,0,0,0.85); padding: 10px 40px; border-radius: 50px; display: inline-block; border: 2px solid #00ffcc; font-size: 24px; }
+        #p-bar { position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); width: 250px; height: 15px; background: #222; border: 2px solid #fff; display: none; border-radius: 10px; overflow: hidden; }
+        #p-fill { width: 0%; height: 100%; background: #00ffcc; transition: background 0.05s; }
+        #tackle-info { position: fixed; left: 20px; bottom: 20px; color: #00ffcc; font-size: 18px; display: none; padding: 10px; border: 1px solid #00ffcc; background: rgba(0,0,0,0.5); }
+        #goal-popup { position: fixed; top: 35%; width: 100%; text-align: center; color: #fbff00; font-size: 60px; display: none; text-shadow: 4px 4px #000; z-index: 2000; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="ui">
+        <div id="main-menu" class="screen">
+            <div class="card">
+                <h1 id="txt-title" style="color:#00ffcc; margin-bottom: 30px;">PIXEL ARENA 2026</h1>
+                <button class="btn" id="txt-start" onclick="showTimes()">OYUNA BAŞLA</button>
+                <button class="btn" id="txt-settings" onclick="openSettings()" style="background:#ddd;">AYARLAR</button>
+            </div>
+        </div>
+
+        <div id="settings-menu" class="screen">
+            <div class="card">
+                <h2 id="txt-set-head">AYARLAR</h2>
+                <div class="setting-item">
+                    <label id="txt-lang-label">DİL / LANGUAGE</label>
+                    <select id="lang-select" onchange="changeLanguage()">
+                        <option value="tr">Türkçe</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label id="txt-sens-label">HASSASİYET / SENSITIVITY</label>
+                    <input type="range" id="sens-slider" min="0.0005" max="0.008" step="0.0005" value="0.002">
+                </div>
+                <button class="btn" id="txt-back" onclick="closeSettings()">GERİ</button>
+            </div>
+        </div>
+
+        <div id="time-menu" class="screen"><div class="card"><h2 id="txt-time-head">MATÇ MÜDDƏTİ</h2><button class="btn" onclick="init(180)">3 DƏQİQƏ</button><button class="btn" onclick="init(300)">5 DƏQİQƏ</button><button class="btn" onclick="init(600)">10 DƏQİQƏ</button></div></div>
+        <div id="pause-menu" class="screen"><div class="card"><h2 id="txt-pause-head" style="color:#ffcc00;">PAUZA</h2><button class="btn" id="txt-resume" onclick="togglePause()">DAVAM ET</button><button class="btn" id="txt-exit" onclick="location.reload()">ANA MENYU</button></div></div>
+        <div id="end-menu" class="screen"><div class="card"><div id="txt-over" style="font-size:50px;">OYUN BİTDİ!</div><div id="end-score" style="font-size: 30px; margin-bottom: 30px;"></div><button class="btn" id="txt-retry" onclick="location.reload()">YENİDƏN OYNA</button></div></div>
+        
+        <div id="hud"><div class="score-box"><span id="txt-you">SƏN</span> <span id="pS" style="color:#00ffcc">0</span> - <span id="cS" style="color:#ff3300">0</span> <span id="txt-opp">RƏQİB</span><div id="timer" style="font-size: 16px; opacity: 0.7; margin-top: 5px;">00:00</div></div></div>
+        <div id="p-bar"><div id="p-fill"></div></div>
+        <div id="stamina-bar"><div id="stamina-fill"></div></div>
+        <div id="tackle-info">TACKLE: HAZIR (Q)</div>
+        <div id="goal-popup">QOL!</div>
+    </div>
+
+    <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } } </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        let scene, camera, renderer, ball, bot, enemyK, myK;
+        let defenders = []; 
+        let active = false, paused = false, isGameOver = false, timeLeft = 0, pScore = 0, cScore = 0;
+        let ballVel = new THREE.Vector3(), keys = {}, power = 0, charging = false, tackleCooldown = 0, botStunTime = 0, dribblePhase = 0;
+        let playerGroup, kickAnimTime = 0, trailParticles = [];
+        let leftClick = false, rightClick = false, mouseVelX = 0;
+        let stamina = 100, isExhausted = false;
+
+        // Settings
+        let sensitivity = 0.002;
+        const langData = {
+            tr: { start: "BAŞLA", settings: "AYARLAR", back: "GERİ", time: "MAÇ SÜRESİ", pause: "DURAKLATILDI", resume: "DEVAM ET", exit: "ANA MENÜ", over: "OYUN BİTTİ!", retry: "TEKRAR OYNA", you: "SEN", opp: "RAKİB", lang: "DİL", sens: "HASSASİYET" },
+            en: { start: "START", settings: "SETTINGS", back: "BACK", time: "MATCH TIME", pause: "PAUSED", resume: "RESUME", exit: "MAIN MENU", over: "GAME OVER!", retry: "PLAY AGAIN", you: "YOU", opp: "OPPONENT", lang: "LANGUAGE", sens: "SENSITIVITY" }
+        };
+
+        window.openSettings = () => { document.getElementById('settings-menu').style.display = 'flex'; };
+        window.closeSettings = () => { 
+            sensitivity = parseFloat(document.getElementById('sens-slider').value);
+            document.getElementById('settings-menu').style.display = 'none'; 
+        };
+        window.changeLanguage = () => {
+            const l = document.getElementById('lang-select').value;
+            const d = langData[l];
+            document.getElementById('txt-start').innerText = d.start;
+            document.getElementById('txt-settings').innerText = d.settings;
+            document.getElementById('txt-back').innerText = d.back;
+            document.getElementById('txt-set-head').innerText = d.settings;
+            document.getElementById('txt-lang-label').innerText = d.lang;
+            document.getElementById('txt-sens-label').innerText = d.sens;
+            document.getElementById('txt-time-head').innerText = d.time;
+            document.getElementById('txt-pause-head').innerText = d.pause;
+            document.getElementById('txt-resume').innerText = d.resume;
+            document.getElementById('txt-exit').innerText = d.exit;
+            document.getElementById('txt-over').innerText = d.over;
+            document.getElementById('txt-retry').innerText = d.retry;
+            document.getElementById('txt-you').innerText = d.you;
+            document.getElementById('txt-opp').innerText = d.opp;
+        };
+
+        let goalieStates = {
+            enemy: { diveTime: 0, type: 'idle', z: -49, predictedX: 0, difficulty: 0.60 },
+            my: { diveTime: 0, type: 'idle', z: 49, predictedX: 0, difficulty: 0.65 }
+        };
+
+        window.showTimes = () => { document.getElementById('main-menu').style.display='none'; document.getElementById('time-menu').style.display='flex'; };
+        window.init = (t) => { 
+            timeLeft = t; 
+            document.getElementById('time-menu').style.display='none'; 
+            document.getElementById('hud').style.display='block'; 
+            document.getElementById('p-bar').style.display='block'; 
+            document.getElementById('stamina-bar').style.display='block';
+            document.getElementById('tackle-info').style.display='block'; 
+            if(!scene) setup(); 
+            fullReset(); 
+            pScore = 0; cScore = 0; stamina = 100;
+            document.getElementById('pS').innerText = 0; 
+            document.getElementById('cS').innerText = 0; 
+            active = true; isGameOver = false; 
+            renderer.domElement.requestPointerLock(); 
+        };
+        window.togglePause = () => { if(!active || isGameOver) return; paused = !paused; document.getElementById('pause-menu').style.display = paused ? 'flex' : 'none'; if(!paused) renderer.domElement.requestPointerLock(); };
+
+        function setup() {
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x3388ff); scene.fog = new THREE.FogExp2(0x3388ff, 0.008);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000); camera.rotation.order = 'YXZ';
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; document.body.appendChild(renderer.domElement);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8)); const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(50, 100, 50); scene.add(sun);
+            
+            const pitch = new THREE.Mesh(new THREE.PlaneGeometry(60, 100), new THREE.MeshPhongMaterial({ color: 0x2d7a30 })); pitch.rotation.x = -Math.PI/2; scene.add(pitch);
+
+            
+            const createLine = (w, h, x, z) => {
+                const l = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                l.rotation.x = -Math.PI/2; l.position.set(x, 0.02, z); scene.add(l);
+            };
+            createLine(60, 0.4, 0, 0); 
+            const circle = new THREE.Mesh(new THREE.RingGeometry(8, 8.4, 64), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            circle.rotation.x = -Math.PI/2; circle.position.y = 0.02; scene.add(circle);
+            createLine(30, 0.4, 0, 35); createLine(0.4, 15, 15, 42.5); createLine(0.4, 15, -15, 42.5); 
+            createLine(30, 0.4, 0, -35); createLine(0.4, 15, 15, -42.5); createLine(0.4, 15, -15, -42.5); 
+
+            ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), new THREE.MeshStandardMaterial({ color: 0xffffff })); scene.add(ball);
+            
+            playerGroup = new THREE.Group();
+            const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.3, 0.25), new THREE.MeshStandardMaterial({ color: 0x00ffcc })); bodyMesh.position.y = 1.0;
+            const legGeo = new THREE.BoxGeometry(0.18, 0.6, 0.18); const legMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const lLeg = new THREE.Mesh(legGeo, legMat); lLeg.position.set(-0.15, 0.3, 0);
+            const rLeg = new THREE.Mesh(legGeo, legMat); rLeg.position.set(0.15, 0.3, 0);
+            const armGeo = new THREE.BoxGeometry(0.15, 0.7, 0.15); const armMat = new THREE.MeshStandardMaterial({ color: 0xffdbac });
+            const lArm = new THREE.Mesh(armGeo, armMat); lArm.position.set(-0.35, 1.2, 0);
+            const rArm = new THREE.Mesh(armGeo, armMat); rArm.position.set(0.35, 1.2, 0);
+            playerGroup.add(bodyMesh, lLeg, rLeg, lArm, rArm); 
+            scene.add(playerGroup);
+
+            const spawn = (c, roleColor = null) => {
+                const g = new THREE.Group();
+                const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.5, 0.4), new THREE.MeshStandardMaterial({ color: c })); b.position.y = 1.6;
+                const h = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), new THREE.MeshStandardMaterial({ color: 0xffdbac })); h.position.y = 2.6;
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                const l1 = leg.clone(); l1.position.set(-0.25, 0.5, 0);
+                const l2 = leg.clone(); l2.position.set(0.25, 0.5, 0);
+                const shoeGeo = new THREE.BoxGeometry(0.35, 0.15, 0.45);
+                const s1 = new THREE.Mesh(shoeGeo, new THREE.MeshStandardMaterial({color: roleColor || 0x222222})); s1.position.set(-0.25, 0.05, 0.05);
+                const s2 = s1.clone(); s2.position.set(0.25, 0.05, 0.05);
+                const armG = new THREE.BoxGeometry(0.25, 1.0, 0.25); const armM = new THREE.MeshStandardMaterial({ color: 0xffdbac });
+                const a1 = new THREE.Mesh(armG, armM); a1.position.set(-0.55, 1.8, 0);
+                const a2 = new THREE.Mesh(armG, armM); a2.position.set(0.55, 1.8, 0);
+                g.add(b, h, l1, l2, a1, a2, s1, s2); scene.add(g); return g;
+            };
+
+            bot = spawn(0xff3300, 0xff0000); 
+            enemyK = spawn(0x0044ff, 0x9900ff); 
+            myK = spawn(0x9900ff, 0x9900ff); 
+            defenders.push({ mesh: spawn(0xff3300, 0xffff00), home: new THREE.Vector3(15, 0, -30), zoneX: [0, 30], holdTime: 0 }); 
+            defenders.push({ mesh: spawn(0xff3300, 0xffff00), home: new THREE.Vector3(-15, 0, -30), zoneX: [-30, 0], holdTime: 0 }); 
+
+            const buildGoal = (z, r) => {
+                const group = new THREE.Group(); const frameM = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 5), frameM); p1.position.set(-7, 2.5, 0); const p2 = p1.clone(); p2.position.x = 7;
+                const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 14.3), frameM); bar.rotation.z = Math.PI/2; bar.position.y = 5;
+                group.add(p1, p2, bar); group.position.set(0, 0, z); group.rotation.y = r; scene.add(group);
+            };
+            buildGoal(-50, 0); buildGoal(50, Math.PI);
+
+            window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code === 'Escape') togglePause(); });
+            window.addEventListener('keyup', e => keys[e.code] = false);
+
+            window.onmousedown = (e) => { 
+                if(e.button === 0) leftClick = true; if(e.button === 2) rightClick = true;
+                let enemyHasBall = defenders.some(d => d.holdTime > 0) || (bot.position.distanceTo(ball.position) < 1.5 && botStunTime <= 0);
+                if(camera.position.distanceTo(ball.position) < 5 && !isGameOver && !paused && !enemyHasBall) charging = true; 
+            };
+            
+            window.onmouseup = (e) => { 
+                if(charging) { 
+                    const lookDir = new THREE.Vector3(); camera.getWorldDirection(lookDir); 
+                    let shootSpeed = 2.8;
+                    if (leftClick && rightClick) {
+                        shootSpeed = 2.4; ball.isCurve = true; ball.curveSide = -mouseVelX * 0.08;
+                        let goalCenter = new THREE.Vector3(0, 1.8, -50);
+                        let cornerOffset = lookDir.x * 18; 
+                        goalCenter.x = THREE.MathUtils.clamp(cornerOffset, -6.8, 6.8); 
+                        lookDir.subVectors(goalCenter, ball.position).normalize(); lookDir.y += 0.12; 
+                    } else if (power > 0.75) { 
+                        ball.isKnuckleball = true; ball.knuckleSeed = Math.random() * Math.PI * 2; lookDir.y += 0.18;
+                    } else { lookDir.y += 0.18; }
+                    ballVel.copy(lookDir.multiplyScalar(power * shootSpeed)); 
+                    kickAnimTime = 15; charging = false; power = 0; 
+                }
+                if(e.button === 0) leftClick = false; if(e.button === 2) rightClick = false;
+            };
+
+            window.onmousemove = e => { if(document.pointerLockElement && !paused && !isGameOver) { 
+                camera.rotation.y -= e.movementX * sensitivity; 
+                camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x - e.movementY * sensitivity, -1.4, 1.4); 
+                mouseVelX = e.movementX; 
+            }};
+            update();
+        }
+
+        function fullReset() {
+            ball.position.set(0, 0.45, 0); ballVel.set(0,0,0); camera.position.set(0, 2.8, 40); bot.position.set(0, 0, -15);
+            enemyK.position.set(0, 0, -49); myK.position.set(0, 0, 49);
+            defenders.forEach(d => { d.mesh.position.copy(d.home); d.holdTime = 0; d.mesh.rotation.x = 0; d.mesh.position.y = 0; });
+            tackleCooldown = 0; botStunTime = 0; ball.isKnuckleball = false; ball.isCurve = false; stamina = 100; isExhausted = false;
+        }
+
+        function animateModel(mesh, isMoving, speedScale = 1) {
+            const time = Date.now() * 0.008 * speedScale;
+            const lLeg = mesh.children[2], rLeg = mesh.children[3], body = mesh.children[0];
+            const lShoe = mesh.children[6], rShoe = mesh.children[7];
+            if (isMoving) {
+                lLeg.rotation.x = Math.sin(time) * 0.6; rLeg.rotation.x = -Math.sin(time) * 0.6;
+                if(lShoe) { lShoe.position.y = 0.05 + Math.max(0, Math.sin(time)*0.2); lShoe.position.z = Math.cos(time)*0.3; }
+                if(rShoe) { rShoe.position.y = 0.05 + Math.max(0, -Math.sin(time)*0.2); rShoe.position.z = -Math.cos(time)*0.3; }
+                body.position.y = 1.6 + Math.abs(Math.cos(time)) * 0.1;
+            } else {
+                lLeg.rotation.x = THREE.MathUtils.lerp(lLeg.rotation.x, 0, 0.1); rLeg.rotation.x = THREE.MathUtils.lerp(rLeg.rotation.x, 0, 0.1);
+                body.position.y = THREE.MathUtils.lerp(body.position.y, 1.6, 0.1);
+                if(lShoe) { lShoe.position.set(-0.25, 0.05, 0.05); rShoe.position.set(0.25, 0.05, 0.05); }
+            }
+        }
+
+        function createTrail() {
+            if (!ball.isCurve && !ball.isKnuckleball) return;
+            const geo = new THREE.SphereGeometry(0.1, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+            const p = new THREE.Mesh(geo, mat);
+            p.position.copy(ball.position).add(new THREE.Vector3((Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5, 0));
+            scene.add(p); trailParticles.push({ mesh: p, life: 1.0 });
+        }
+
+        function update() {
+            requestAnimationFrame(update);
+            if(!active || paused || isGameOver) return;
+            updateUI(); updatePlayer(); updateBall(); updateAI();
+            trailParticles.forEach((p, i) => {
+                p.life -= 0.05; p.mesh.material.opacity = p.life; p.mesh.scale.multiplyScalar(0.95);
+                if(p.life <= 0) { scene.remove(p.mesh); trailParticles.splice(i, 1); }
+            });
+            if(ballVel.length() > 0.5) createTrail();
+            renderer.render(scene, camera);
+        }
+
+        function updateUI() {
+            timeLeft -= 1/60; if(timeLeft <= 0) finishGame();
+            document.getElementById('timer').innerText = `${Math.floor(timeLeft/60)}:${Math.floor(timeLeft%60).toString().padStart(2,'0')}`;
+            const isMoving = (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']);
+            if (isMoving) { stamina -= 0.15; if (stamina <= 0) { stamina = 0; isExhausted = true; } }
+            else { stamina += 0.25; if (stamina >= 100) { stamina = 100; isExhausted = false; } if (stamina > 20) isExhausted = false; }
+            document.getElementById('stamina-fill').style.width = stamina + '%';
+            document.getElementById('stamina-fill').style.background = isExhausted ? '#ff3300' : '#00aaff';
+            if(charging) { 
+                let increment = (power < 0.75) ? 0.025 : 0.007; power = Math.min(power + increment, 1.5);
+                let bar = document.getElementById('p-fill'); bar.style.width = (power/1.5*100)+'%'; 
+                bar.style.background = (leftClick && rightClick) ? "#00aaff" : ((power > 0.75) ? "#ff00ff" : "#00ffcc");
+            } else document.getElementById('p-fill').style.width = '0%';
+        }
+
+        function updatePlayer() {
+            playerGroup.position.copy(camera.position).setY(0); playerGroup.rotation.y = camera.rotation.y;
+            const isMoving = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
+            const pTime = Date.now() * 0.01;
+            if (isMoving) {
+                playerGroup.children[1].rotation.x = Math.sin(pTime) * 0.7; playerGroup.children[2].rotation.x = -Math.sin(pTime) * 0.7;
+                playerGroup.children[3].rotation.x = -Math.sin(pTime) * 0.4; playerGroup.children[4].rotation.x = Math.sin(pTime) * 0.4;
+            } else {
+                playerGroup.children[1].rotation.x = playerGroup.children[2].rotation.x = 0;
+                playerGroup.children[3].rotation.x = playerGroup.children[4].rotation.x = 0;
+            }
+            if (kickAnimTime > 0) { playerGroup.children[2].rotation.x = -1.2; kickAnimTime--; } 
+            const moveSpeed = isExhausted ? 0.08 : 0.24;
+            const move = new THREE.Vector3();
+            if(keys['KeyW']) move.z -= 1; if(keys['KeyS']) move.z += 1; if(keys['KeyA']) move.x -= 1; if(keys['KeyD']) move.x += 1;
+            if(move.length() > 0) camera.position.addScaledVector(move.applyQuaternion(camera.quaternion).setY(0).normalize(), moveSpeed);
+            camera.position.x = THREE.MathUtils.clamp(camera.position.x, -29, 29); camera.position.z = THREE.MathUtils.clamp(camera.position.z, -49, 49);
+            if(tackleCooldown > 0) { tackleCooldown -= 1/60; document.getElementById('tackle-info').innerText = `TACKLE: ${Math.ceil(tackleCooldown)}s`; } 
+            else { document.getElementById('tackle-info').innerText = "TACKLE: HAZIR (Q)"; if(keys['KeyQ']) performTackle(); }
+        }
+
+        function performTackle() {
+            let targets = [{mesh: bot, type: 'forward'}]; defenders.forEach(d => targets.push({mesh: d.mesh, type: 'defender', ref: d}));
+            let closest = null, minDist = Infinity; targets.forEach(t => { let d = camera.position.distanceTo(t.mesh.position); if(d < minDist) { minDist = d; closest = t; } });
+            if(closest && minDist < 5) {
+                tackleCooldown = 3; 
+                if(closest.type === 'forward') { botStunTime = 120; bot.rotation.x = -Math.PI/2; bot.position.y = 0.5; }
+                else { closest.ref.holdTime = -120; closest.mesh.rotation.x = -Math.PI/2; closest.mesh.position.y = 0.5; }
+                let dir = new THREE.Vector3(); camera.getWorldDirection(dir).setY(0).normalize();
+                ball.position.copy(camera.position).addScaledVector(dir, 2.5); ballVel.copy(dir.multiplyScalar(0.4));
+            }
+        }
+
+        function updateBall() {
+            ball.position.add(ballVel);
+            if(ball.isCurve && ballVel.length() > 0.05) { let sideVec = new THREE.Vector3(-ballVel.z, 0, ballVel.x).normalize(); ballVel.addScaledVector(sideVec, ball.curveSide * 0.018); }
+            if (ball.isKnuckleball && ballVel.length() > 0.05) { let time = Date.now() * 0.012; ball.position.x += Math.sin(time + ball.knuckleSeed) * 0.12; ball.position.y += Math.cos(time * 1.5) * 0.06; }
+            let friction = ball.position.y <= 0.46 ? 0.935 : 0.992; ballVel.multiplyScalar(friction); 
+            if(ball.position.y > 0.45) ballVel.y -= 0.02; else { ball.position.y = 0.45; ballVel.y *= -0.4; }
+            if(Math.abs(ball.position.x) > 29.5) { ball.position.x = Math.sign(ball.position.x)*29.5; ballVel.x *= -0.6; }
+            if(Math.abs(ball.position.z) > 49.5) { if(Math.abs(ball.position.x) < 7 && ball.position.y < 5) checkGoal(); else { ball.position.z = Math.sign(ball.position.z)*49.5; ballVel.z *= -0.6; } }
+        }
+
+        function updateAI() {
+            defenders.forEach(d => {
+                if(d.holdTime < 0) { d.holdTime++; return; } 
+                if(d.holdTime === 0) { d.mesh.rotation.x = 0; d.mesh.position.y = 0; }
+                let ballInZone = ball.position.x >= d.zoneX[0] && ball.position.x <= d.zoneX[1] && ball.position.z < 0;
+                let distToBall = d.mesh.position.distanceTo(ball.position);
+                if (ballInZone && distToBall < 15) {
+                    let targetDir = new THREE.Vector3().subVectors(ball.position, d.mesh.position).setY(0).normalize();
+                    d.mesh.position.addScaledVector(targetDir, 0.14); d.mesh.rotation.y = Math.atan2(targetDir.x, targetDir.z);
+                    if (distToBall < 1.6 && d.holdTime <= 0) { d.holdTime = 30; } animateModel(d.mesh, true, 1.2);
+                } else {
+                    let backDir = new THREE.Vector3().subVectors(d.home, d.mesh.position).setY(0);
+                    if (backDir.length() > 1) { d.mesh.position.addScaledVector(backDir.normalize(), 0.1); d.mesh.rotation.y = Math.atan2(backDir.x, backDir.z); animateModel(d.mesh, true, 0.8); }
+                    else animateModel(d.mesh, false);
+                }
+               // defenders updateAI
+if(d.holdTime > 0) {
+    d.holdTime--;
+    ball.position.copy(d.mesh.position).add(new THREE.Vector3(0,0.45,0.8)); // y = 0.45
+    if(d.holdTime <= 0) ballVel.copy(new THREE.Vector3(0,0,1).multiplyScalar(0.7));
+}
+
+            });
+
+            if (botStunTime > 0) { botStunTime--; return; } 
+            else { if(botStunTime === 0) { bot.rotation.x = 0; bot.position.y = 0; }
+                let distToBall = bot.position.distanceTo(ball.position);
+                if (distToBall > 1.2) {
+                    let moveDir = new THREE.Vector3().subVectors(ball.position, bot.position).setY(0).normalize();
+                    bot.position.addScaledVector(moveDir, 0.16); bot.rotation.y = Math.atan2(moveDir.x, moveDir.z); animateModel(bot, true, 1.3);
+                } else {
+                    dribblePhase += 0.08; let toGoal = new THREE.Vector3(0, 0, 50).subVectors(new THREE.Vector3(0,0,50), bot.position).setY(0).normalize();
+                    let finalMove = toGoal.clone().add(new THREE.Vector3(-toGoal.z, 0, toGoal.x).multiplyScalar(Math.sin(dribblePhase)*0.6)).normalize();
+                    bot.position.addScaledVector(finalMove, 0.14); bot.rotation.y = Math.atan2(finalMove.x, finalMove.z);
+                    ball.position.x = bot.position.x + finalMove.x * 0.85; ball.position.z = bot.position.z + finalMove.z * 0.85;
+                    if (bot.position.z > 25 && Math.random() > 0.98) {
+                        let shotType = Math.random(); let shotVel = toGoal.clone().multiplyScalar(1.2);
+                        if(shotType < 0.1) { ball.isKnuckleball = true; ball.knuckleSeed = Math.random(); shotVel.multiplyScalar(1.3); }
+                        else if(shotType < 0.2) { ball.isCurve = true; ball.curveSide = (Math.random()-0.5)*2; shotVel.multiplyScalar(0.9); }
+                        ballVel.copy(shotVel);
+                    }
+                    animateModel(bot, true, 1.3);
+                }
+            }
+
+            [ {k: enemyK, s: goalieStates.enemy}, {k: myK, s: goalieStates.my} ].forEach(obj => {
+                let g = obj.k, s = obj.s, dist = g.position.distanceTo(ball.position);
+                let lArm = g.children[4], rArm = g.children[5], ballComing = (s.z < 0 && ballVel.z < -0.2) || (s.z > 0 && ballVel.z > 0.2);
+                if (s.diveTime > 0) {
+                    s.diveTime--; g.position.x = THREE.MathUtils.lerp(g.position.x, s.predictedX, 0.12); // Qapıçının updateAI-dakı hissəsi
+g.position.y = THREE.MathUtils.clamp(ball.position.y + 0.6, 0, 2.5); // maksimum 2.5 yüksəkliyə icazə
+
+                    g.rotation.z = THREE.MathUtils.lerp(g.rotation.z, s.type === 'left' ? 1.5 : -1.5, 0.15); lArm.rotation.z = -1.2; rArm.rotation.z = 1.2;
+                    if (dist < 3.0 && Math.random() < s.difficulty) { ballVel.set((ball.position.x - g.position.x) * 0.4, 0.2, Math.sign(s.z) * -0.5).multiplyScalar(0.4); ball.isKnuckleball = ball.isCurve = false; s.diveTime = 5; }
+                } else {
+                    g.rotation.z = THREE.MathUtils.lerp(g.rotation.z, 0, 0.05); g.position.y = THREE.MathUtils.lerp(g.position.y, 0, 0.05);
+                    lArm.rotation.z = THREE.MathUtils.lerp(lArm.rotation.z, 0, 0.1); rArm.rotation.z = THREE.MathUtils.lerp(rArm.rotation.z, 0, 0.1);
+                    if (ballComing && Math.abs(ball.position.z - s.z) < 25) {
+                        lArm.rotation.x = -1.0; rArm.rotation.x = -1.0; 
+                        let t = (s.z - ball.position.z) / ballVel.z; let pX = ball.position.x + (ballVel.x * t);
+                        if (Math.abs(pX) < 8.5 && (Math.abs(pX - g.position.x) > 2.5 || ballVel.length() > 1.5)) {
+                            s.diveTime = 50; s.predictedX = THREE.MathUtils.clamp(pX, -7.5, 7.5); s.type = s.predictedX > g.position.x ? 'right' : 'left';
+                        }
+                    } else { lArm.rotation.x = THREE.MathUtils.lerp(lArm.rotation.x, 0, 0.1); rArm.rotation.x = THREE.MathUtils.lerp(rArm.rotation.x, 0, 0.1); }
+                    if (dist < .5) { lArm.rotation.z = -0.5; rArm.rotation.z = 0.5; ballVel.set((ball.position.x - g.position.x) * 0.3, 0.1, Math.sign(s.z) * -0.4).multiplyScalar(0.4); }
+                    let followX = THREE.MathUtils.clamp(ball.position.x, -6.5, 6.5); g.position.x += (followX - g.position.x) * 0.1; animateModel(g, Math.abs(g.position.x - followX) > 0.05, 1.8);
+                }
+            });
+        }
+
+        function checkGoal() {
+            if(!active) return;
+            const p = document.getElementById('goal-popup'); ball.position.z < 0 ? pScore++ : cScore++;
+            document.getElementById('pS').innerText = pScore; document.getElementById('cS').innerText = cScore;
+            p.innerText = ball.position.z < 0 ? "QOL VURDUN!" : "RƏQİB QOL VURDU!"; 
+            p.style.display='block'; active=false; setTimeout(() => { p.style.display='none'; fullReset(); if(!isGameOver) active=true; }, 2000);
+        }
+
+        function finishGame() { active = false; isGameOver = true; document.exitPointerLock(); document.getElementById('end-score').innerText = `HESAB: ${pScore} - ${cScore}`; document.getElementById('end-menu').style.display = 'flex'; }
+    </script>
+</body>
+</html>
